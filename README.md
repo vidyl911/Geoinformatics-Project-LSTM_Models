@@ -1,12 +1,109 @@
-# Geoinformatics-Project-LSTM_Models
-# 🌿 LSTM-Based Prediction of Vegetation Indices (NDVI & NDMI)
+# NDVI / NDMI Gap-Fill Pipeline
+### Advanced LSTM · BiLSTM · Smoothed-BiLSTM · Attention-BiLSTM
 
-Welcome to the official repository for the Geoinformatics Engineering MSc project at **Politecnico di Milano**. 
+---
 
-This project addresses the critical challenge of data gaps in environmental sensor networks by implementing an end-to-end deep learning pipeline to predict and gap-fill vegetation indices. Using a comprehensive set of 21 meteorological, topographic, and temporal predictors, we evaluate four Long Short-Term Memory (LSTM) architectures for the simultaneous reconstruction of the Normalized Difference Vegetation Index (NDVI) and Normalized Difference Moisture Index (NDMI) across the topographically complex Lombardy region, Italy.
+## File structure
 
-### 🚀 Key Highlights
-* **Multi-Architecture Comparison:** Evaluates Standard LSTM, Bidirectional LSTM (BiLSTM), Blackman FIR-filtered Smoothed-BiLSTM, and a novel Attention-BiLSTM.
-* **Dual-Target Prediction:** Simultaneous gap-filling for both vegetation greenness (NDVI) and canopy moisture (NDMI).
-* **Comprehensive Feature Engineering:** Utilizes 21 predictors including cyclic temporal encodings, rolling statistics, and autoregressive lag features.
-* **Rigorous Evaluation:** Features a 12-metric evaluation framework, seasonal/topographic stratification, timestep ablation studies, and Wilcoxon signed-rank statistical testing.
+```
+ndvi_pipeline/
+├── config.py              # All shared constants, paths, colours, rcParams
+│
+├── step1_data_prep.py     # Load CSV → smooth → scale → build sequences
+├── step2_train.py         # Define & train all 8 models (4 arch × 2 targets)
+├── step3_predict.py       # Predict, inverse-scale, compute 12 metrics
+├── step4_ablation.py      # Timestep ablation study
+├── step5_plots.py         # All 11 publication-quality figures
+│
+└── run_all.py             # Orchestrator — runs steps 1-5 in sequence
+```
+
+---
+
+## Quick start
+
+### Run everything
+```bash
+python run_all.py
+```
+
+### Resume from a specific step (e.g. after changing EPOCHS)
+```bash
+python run_all.py --from 2   # re-trains and regenerates plots
+python run_all.py --from 3   # keeps trained models, re-runs predictions
+python run_all.py --from 5   # re-generates plots only
+```
+
+### Run a single step
+```bash
+python run_all.py --only 5
+```
+
+### Run steps individually
+```bash
+python step1_data_prep.py
+python step2_train.py
+python step3_predict.py
+python step4_ablation.py
+python step5_plots.py
+```
+
+---
+
+## Configuration (`config.py`)
+
+| Variable        | Default                            | Notes                                     |
+|-----------------|------------------------------------|-------------------------------------------|
+| `DATA_PATH`     | `F:/…/cleaned_full_dataset.csv`    | Change to your actual CSV path            |
+| `OUT_DIR`       | `F:/…/lstm_results_advanced`       | All outputs land here                     |
+| `EPOCHS`        | `50`                               | Lower to `3` for a quick smoke-test       |
+| `TIMESTEPS`     | `7`                                | Lookback window (days)                    |
+| `BATCH`         | `32`                               | Mini-batch size                           |
+| `VAL_SPLIT`     | `0.15`                             | Fraction of train used for validation     |
+
+---
+
+## Outputs
+
+```
+OUT_DIR/
+├── arrays/               ← .npy sequence arrays + feature_cols.txt
+├── models/               ← 8 × .keras models + history CSVs + scalers
+├── plots/                ← 11 × 300 DPI figures
+│
+├── test_df.csv           ← pre-processed test split
+├── train_df.csv          ← pre-processed train split
+├── pred_NDVI_*.csv       ← per-model predictions
+├── pred_NDMI_*.csv
+├── evaluation_metrics_advanced.csv   ← 12-metric comparison table
+├── seasonal_metrics_advanced.csv     ← per-season breakdown
+├── doy_profile_advanced.csv          ← rolling DoY RMSE & ME
+├── wilcoxon_pvalues_NDVI.csv         ← pairwise significance matrix
+└── wilcoxon_pvalues_NDMI.csv
+```
+
+---
+
+## Model architectures
+
+| Label              | Params (approx) | Key novelty                                      |
+|--------------------|-----------------|--------------------------------------------------|
+| LSTM               | ~170 K          | Two-layer stacked LSTM baseline                  |
+| BiLSTM             | ~340 K          | Two-layer bidirectional LSTM                     |
+| Smoothed-BiLSTM    | ~860 K          | Three-layer BiLSTM on Blackman-smoothed features |
+| Attention-BiLSTM   | ~420 K          | Multi-head self-attention + BiLSTM encoder       |
+
+---
+
+## Dependencies
+
+```
+tensorflow >= 2.14
+scikit-learn
+scipy
+pandas
+numpy
+matplotlib
+seaborn
+joblib
+```
